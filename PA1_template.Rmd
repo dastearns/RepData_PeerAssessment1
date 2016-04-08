@@ -1,25 +1,256 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
+author: "Daniel A Stearns"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: 
   html_document:
     keep_md: true
 ---
 
-
 ## Loading and preprocessing the data
+#### 1. Load Libraries
+```{r, echo=TRUE}
 
+library(data.table)
+library(chron)
 
+```
+
+#### 2. Load the data 
+```{r, echo=TRUE}
+
+if(!file.exists('activity.csv')){
+    unzip('activity.zip')
+}
+
+src_data <- read.csv("activity.csv")
+```
+#### 3. Review and the data set
+```{r, echo=TRUE}
+
+names(src_data)
+str(src_data)
+summary(src_data)
+head(src_data)
+tail(src_data)
+
+```
+#### 4. Preprocess the data
+```{r, echo=TRUE}
+src_data$date <- as.Date(as.character(src_data$date),format="%Y-%m-%d")
+
+data <- data.table(src_data)
+data <- data[, weekday := weekdays(as.Date(date))]
+data <- data[, daytype := ifelse(is.weekend(data$date), "Weekend", "Weekday") ]
+
+data_day <- data[, list(steps = sum(steps, na.rm = T)), by = date]
+data_int <- data[, list(steps = mean(steps, na.rm = T)), by = interval]
+data_cleansing_strategy <- data[, list(mean_steps = mean(steps, na.rm = T)), by =  list(interval,weekday)]
+tables()
+
+```
 
 ## What is mean total number of steps taken per day?
+#### 1. Display Total Steps per Data
+```{r, echo=TRUE}
+data_day
+```
+#### 2. Plot Historgram of total steps per day
+```{r, echo=TRUE}
+hist(
+   data_day$steps, 
+   breaks=15, 
+   main="Number of Days with Total Steps", 
+   xlab="Daily Steps", 
+   ylab="Frequency", 
+   col="cyan"
+)
 
+#barplot(
+#    data_day$steps,  
+#    names=data_day$date, 
+#    main="Total Steps Per Day", 
+#    xlab="Dates", 
+#    ylab="Steps", 
+#    col="cyan", 
+#    cex.names=0.6
+#)
 
+```
+
+#### 3. Calculate Mean and Median
+
+```{r, echo=TRUE}
+
+median_daily_steps <- median(data_day[,steps])
+mean_daily_steps <- mean(data_day[,steps])
+
+```
+
+#####Mean: `r format(median_daily_steps, scientific = FALSE)`
+#####Median:  `r format(mean_daily_steps, scientific = FALSE)`
 
 ## What is the average daily activity pattern?
+#### 1. Time series plot of the interval and steps taken.
+
+```{r, echo=TRUE}
+
+plot(
+    data_int$interval, 
+    data_int$steps, 
+    type='l', 
+    col="red", 
+    main="Average Steps by Time of Day (5 Minute Intervals)", 
+    xlab="Time of Day", 
+    ylab="Steps"
+)
+
+```
 
 
+#### 2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r, echo=TRUE}
 
-## Imputing missing values
+max_step_interval <- data_int[which.max(data_int$steps)]$interval
 
+```
+
+#####Interval with Maximum Steps: `r format(max_step_interval, scientific = FALSE)`
+
+
+## Inputing missing values
+#### 1. Calculate Missing Values
+
+```{r, echo=TRUE}
+
+total_missing <- sum(is.na(data$steps))
+
+```
+
+#####Total Missing Values: `r total_missing`
+
+#### 2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+```{r, echo=TRUE}
+
+data_clean <- data
+data_clean <- merge(data_clean, data_cleansing_strategy, by=c("interval","weekday")) 
+data_clean <- within(data_clean, steps <- ifelse(is.na(steps), mean_steps, steps))
+data_clean <- data_clean[ ,list(date, interval, steps, daytype)]                     
+                    
+
+#verify there are no missing values
+sum(is.na(data_clean$steps))
+
+```
+
+#### 3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+
+```{r, echo=TRUE}
+data_clean_day <- data_clean[, list(steps = sum(steps, na.rm = T)), by = date]
+
+```
+
+#### 4. Plot Historgram of total steps per day
+```{r, echo=TRUE}
+hist(
+   data_clean_day$steps, 
+   breaks=15, 
+   main="Number of Days with Total Steps", 
+   xlab="Daily Steps", 
+   ylab="Frequency", 
+   col="cyan"
+)
+
+#barplot(
+#    data_clean_day$steps,  
+#    names=data_clean_day$date, 
+#    main="Total Steps Per Day", 
+#    xlab="Dates", 
+#    ylab="Steps", 
+#    col="cyan", 
+#    cex.names=0.6
+#)
+
+```
+
+#### 3. Calculate Mean and Median
+
+```{r, echo=TRUE}
+
+median_clean_daily_steps <- median(data_clean_day[,steps])
+mean_clean_daily_steps <- mean(data_clean_day[,steps])
+
+```
+
+#####Mean: `r format(median_clean_daily_steps, scientific = FALSE)`
+#####Median:  `r format(mean_clean_daily_steps, scientific = FALSE)`
+
+####4. Determine impact of imputing missing data.
+
+#####Median Original: `r format(median_daily_steps, scientific = FALSE)` 
+#####Median Clean: `r format(median_clean_daily_steps, scientific = FALSE)` 
+#####<span style="color:blue">Median Difference: `r format(median_clean_daily_steps-median_daily_steps, scientific = FALSE)`</span>
+#####<span style="color:blue">Median Variance: `r format(round((median_clean_daily_steps-median_daily_steps)/median_daily_steps*100,2), scientific = FALSE)`%</span>
+
+#####Mean Original: `r format(mean_daily_steps, scientific = FALSE)` 
+#####Mean Clean: `r format(mean_clean_daily_steps, scientific = FALSE)` 
+#####<span style="color:blue">Mean Difference: `r format(mean_clean_daily_steps-mean_daily_steps, scientific = FALSE, digits=2)`</span> 
+#####<span style="color:blue">Median Variance: `r format( round( (mean_clean_daily_steps - mean_daily_steps)/mean_daily_steps*100 ,2), scientific = FALSE)`%</span>
+
+Yes, using the cleansing strategy based on average number of steps per interval and weekday causes a statistically significant shift in the median and mean amount of steps, however the imputing of the data creates a more normalized histogram with an even distribution. 
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+#### 1. Create a new factor variable 
+
+```{r, echo=TRUE}
+
+date_week <- data_clean
+data_week <- data[, list(steps = mean(steps, na.rm = T)), by = list(interval, daytype)]
+data_weekday <- data_week[daytype=="Weekend"]
+data_weekend <- data_week[daytype=="Weekday"]
+
+```
+
+#### 2. Make a panel plot 
+
+```{r, echo=TRUE}
+par(mfrow=c(2,1))
+
+plot(
+    data_weekend$interval, 
+    data_weekend$steps, 
+    type='l', 
+    col="red",
+    main="Average Steps by Time of Day (5 Minute Intervals)
+
+    Weekend",
+    xlab="Time of Day", 
+    ylab="Steps",
+    ylim=c(0, 250)
+)
+
+plot(
+    data_weekday$interval, 
+    data_weekday$steps, 
+    type='l', 
+    col="red",
+    main="Weekday", 
+    xlab="Time of Day", 
+    ylab="Steps",
+    ylim=c(0, 250)
+)
+
+
+```
+
+#### 3. Weekend/Weekday Differences 
+
+```{r, echo=TRUE}
+summary(data_weekday$steps)
+
+summary(data_weekend$steps)
+```
