@@ -272,6 +272,8 @@ total_missing <- sum(is.na(data$steps))
 
 #### 2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
 
+Reviewing the data set we find we are missing 13.1% of the step values from the dataset.We would like to devise strategy for imputing the missing values, since the mean and median strategies are not the best options, I choose to create a strategy tha generates the mean value for steps based on the weekday and interval. I felt the weekday was an important factor as people have diffrent habits based on days of the week. If more data was present I may have also looked at seasonality of the steps. For example Fall, Winter, Spring, Summer. The imputed value is then applied to the NA values in the dataset where matched on the weekday and interval.
+
 
 ```r
 data_clean <- data
@@ -394,7 +396,7 @@ plot(
 
 ![](PA1_template_files/figure-html/unnamed-chunk-16-1.png)<!-- -->
 
-#### 3. weekend/Weekday Differences 
+#### 3. Weekend/Weekday Differences 
 
 
 ```r
